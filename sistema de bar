@@ -1,0 +1,347 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <locale.h>
+
+
+#define MAX_ITENS 100
+
+typedef struct {
+    int id;
+    char nome[60];
+    float preco;
+    int estoque;
+    char tipo[30];
+} Item;
+
+typedef struct {
+    char nome[60];
+    char email[80];
+    char senha[30];
+} Usuario;
+
+void cadastrarDono();
+int verificarEmail(char email[]);
+int login();
+void menu();
+void cadastrarItem();
+void listarItens();
+void editarItem();
+void excluirItem();
+void listarPromocoes();
+void buscarItem();
+void ordenarPorPreco();
+void relatorioEstoque();
+int carregarItens(Item itens[]);
+
+int main() {
+    setlocale(LC_ALL, "pt_BR.UTF-8");
+
+    int opcao;
+
+    printf("=== SISTEMA DO BAR ===\n");
+    printf("1 - Cadastrar dono\n");
+    printf("2 - Fazer login\n");
+    printf("Escolha: ");
+    scanf("%d", &opcao);
+
+    if (opcao == 1) {
+        cadastrarDono();
+    }
+
+    if (login()) {
+        printf("\n🍻 Bem-vindo ao sistema do Bar! 🍻\n");
+        menu();
+    } else {
+        printf("Acesso negado. Encerrando...\n");
+    }
+
+    return 0;
+}
+
+void cadastrarDono() {
+    char nome[50], senha[30];
+    FILE *fp = fopen("usuario.txt", "w");
+
+    if (fp == NULL) {
+        printf("Erro ao abrir o arquivo.\n");
+        return;
+    }
+
+    printf("=== Cadastro do dono do bar ===\n");
+    printf("Nome de usuário: ");
+    scanf("%s", nome);
+    printf("Senha: ");
+    scanf("%s", senha);
+
+    fprintf(fp, "%s\n%s\n", nome, senha);
+    fclose(fp);
+    printf("Cadastro realizado com sucesso!\n\n");
+}
+
+int verificarEmail(char email[]) {
+    return strchr(email, '@') != NULL && strlen(email) < 80;
+}
+
+int login() {
+    char nomeCorreto[50], senhaCorreta[30];
+    char nome[50], senha[30];
+    FILE *fp = fopen("usuario.txt", "r");
+
+    if (fp == NULL) {
+        printf("Você precisa se cadastrar primeiro!\n");
+        return 0;
+    }
+
+    fscanf(fp, "%s\n%s\n", nomeCorreto, senhaCorreta);
+    fclose(fp);
+
+    printf("=== LOGIN ===\n");
+    while (1) {
+        printf("Usuário: ");
+        scanf("%s", nome);
+        printf("Senha: ");
+        scanf("%s", senha);
+
+        if (strcmp(nome, nomeCorreto) == 0 && strcmp(senha, senhaCorreta) == 0) {
+            printf("Login realizado com sucesso!\n\n");
+            return 1;
+        } else {
+            printf("Usuário ou senha incorretos. Tente novamente.\n\n");
+        }
+    }
+}
+
+void menu() {
+    int opcao;
+
+    do {
+        printf("\n=== MENU DO BAR ===\n");
+        printf("1 - Cadastrar item\n");
+        printf("2 - Listar itens\n");
+        printf("3 - Editar item\n");
+        printf("4 - Excluir item\n");
+        printf("5 - Listar promoções\n");
+        printf("6 - Buscar item\n");
+        printf("7 - Ordenar cardápio por preço\n");
+        printf("8 - Relatório do estoque\n");
+        printf("9 - Sair\n");
+        printf("Escolha uma opção: ");
+        scanf("%d", &opcao);
+
+        switch (opcao) {
+            case 1: cadastrarItem(); break;
+            case 2: listarItens(); break;
+            case 3: editarItem(); break;
+            case 4: excluirItem(); break;
+            case 5: listarPromocoes(); break;
+            case 6: buscarItem(); break;
+            case 7: ordenarPorPreco(); break;
+            case 8: relatorioEstoque(); break;
+            case 9: printf("Saindo do sistema...\n"); break;
+            default: printf("Opção inválida. Tente novamente.\n");
+        }
+
+    } while (opcao != 9);
+}
+
+void cadastrarItem() {
+    FILE *fp = fopen("cardapio.txt", "a");
+    if (fp == NULL) {
+        printf("Erro ao abrir o arquivo!\n");
+        return;
+    }
+
+    Item item;
+    printf("\n=== CADASTRAR ITEM ===\n");
+    printf("ID do item: ");
+    scanf("%d", &item.id);
+    getchar();
+    printf("Nome do item: ");
+    fgets(item.nome, sizeof(item.nome), stdin);
+    strtok(item.nome, "\n");
+    printf("Tipo (bebida/comida): ");
+    scanf("%s", item.tipo);
+    printf("Preço: R$ ");
+    scanf("%f", &item.preco);
+    printf("Estoque: ");
+    scanf("%d", &item.estoque);
+
+    fprintf(fp, "%d\n%s\n%s\n%.2f\n%d\n", item.id, item.nome, item.tipo, item.preco, item.estoque);
+    fclose(fp);
+    printf("Item cadastrado com sucesso!\n");
+}
+
+void listarItens() {
+    FILE *fp = fopen("cardapio.txt", "r");
+    if (fp == NULL) {
+        printf("Nenhum item cadastrado ainda.\n");
+        return;
+    }
+
+    Item item;
+    printf("\n=== LISTA DE ITENS ===\n");
+    while (fscanf(fp, "%d\n%[^\n]\n%[^\n]\n%f\n%d\n", &item.id, item.nome, item.tipo, &item.preco, &item.estoque) != EOF) {
+        printf("ID: %d | %s (%s) | R$ %.2f | Estoque: %d\n", item.id, item.nome, item.tipo, item.preco, item.estoque);
+    }
+
+    fclose(fp);
+}
+
+void editarItem() {
+    Item itens[MAX_ITENS];
+    int total = carregarItens(itens);
+    int id, i, encontrado = 0;
+
+    printf("\n=== EDITAR ITEM ===\n");
+    printf("Digite o ID do item que deseja editar: ");
+    scanf("%d", &id);
+
+    for (i = 0; i < total; i++) {
+        if (itens[i].id == id) {
+            encontrado = 1;
+            getchar();
+            printf("Novo nome: ");
+            fgets(itens[i].nome, 60, stdin);
+            strtok(itens[i].nome, "\n");
+            printf("Novo tipo: ");
+            scanf("%s", itens[i].tipo);
+            printf("Novo preço: R$ ");
+            scanf("%f", &itens[i].preco);
+            printf("Novo estoque: ");
+            scanf("%d", &itens[i].estoque);
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        printf("Item não encontrado.\n");
+        return;
+    }
+
+    FILE *fp = fopen("cardapio.txt", "w");
+    for (i = 0; i < total; i++) {
+        fprintf(fp, "%d\n%s\n%s\n%.2f\n%d\n", itens[i].id, itens[i].nome, itens[i].tipo, itens[i].preco, itens[i].estoque);
+    }
+    fclose(fp);
+    printf("Item atualizado com sucesso!\n");
+}
+
+void excluirItem() {
+    Item itens[MAX_ITENS];
+    int total = carregarItens(itens);
+    int id, i, j;
+
+    printf("\n=== EXCLUIR ITEM ===\n");
+    printf("Digite o ID do item que deseja excluir: ");
+    scanf("%d", &id);
+
+    FILE *fp = fopen("cardapio.txt", "w");
+    for (i = 0; i < total; i++) {
+        if (itens[i].id != id) {
+            fprintf(fp, "%d\n%s\n%s\n%.2f\n%d\n", itens[i].id, itens[i].nome, itens[i].tipo, itens[i].preco, itens[i].estoque);
+        }
+    }
+    fclose(fp);
+    printf("Item excluído com sucesso!\n");
+}
+
+void listarPromocoes() {
+    FILE *fp = fopen("cardapio.txt", "r");
+    if (fp == NULL) {
+        printf("Nenhum item cadastrado.\n");
+        return;
+    }
+
+    Item item;
+    printf("\n=== ITENS EM PROMOÇÃO (PREÇO < R$10) ===\n");
+    while (fscanf(fp, "%d\n%[^\n]\n%[^\n]\n%f\n%d\n", &item.id, item.nome, item.tipo, &item.preco, &item.estoque) != EOF) {
+        if (item.preco < 10.0) {
+            printf("ID: %d | %s (%s) | R$ %.2f | Estoque: %d\n", item.id, item.nome, item.tipo, item.preco, item.estoque);
+        }
+    }
+    fclose(fp);
+}
+
+void buscarItem() {
+    FILE *fp = fopen("cardapio.txt", "r");
+    if (fp == NULL) {
+        printf("Nenhum item cadastrado.\n");
+        return;
+    }
+
+    Item item;
+    char busca[60];
+    printf("\nDigite o nome do item a buscar: ");
+    getchar();
+    fgets(busca, 60, stdin);
+    strtok(busca, "\n");
+
+    while (fscanf(fp, "%d\n%[^\n]\n%[^\n]\n%f\n%d\n", &item.id, item.nome, item.tipo, &item.preco, &item.estoque) != EOF) {
+        if (strstr(item.nome, busca)) {
+            printf("ID: %d | %s (%s) | R$ %.2f | Estoque: %d\n", item.id, item.nome, item.tipo, item.preco, item.estoque);
+        }
+    }
+    fclose(fp);
+}
+
+void ordenarPorPreco() {
+    Item itens[MAX_ITENS];
+    int total = carregarItens(itens);
+
+    for (int i = 0; i < total - 1; i++) {
+        for (int j = 0; j < total - i - 1; j++) {
+            if (itens[j].preco > itens[j + 1].preco) {
+                Item temp = itens[j];
+                itens[j] = itens[j + 1];
+                itens[j + 1] = temp;
+            }
+        }
+    }
+
+    printf("\n=== CARDÁPIO ORDENADO POR PREÇO ===\n");
+    for (int i = 0; i < total; i++) {
+        printf("ID: %d | %s (%s) | R$ %.2f | Estoque: %d\n", itens[i].id, itens[i].nome, itens[i].tipo, itens[i].preco, itens[i].estoque);
+    }
+}
+
+void relatorioEstoque() {
+    FILE *fp = fopen("cardapio.txt", "r");
+    if (fp == NULL) {
+        printf("Erro ao abrir o arquivo.\n");
+        return;
+    }
+
+    int total = 0, totalBebidas = 0, totalComidas = 0;
+    float valorTotal = 0;
+    Item item;
+
+    while (fscanf(fp, "%d\n%[^\n]\n%[^\n]\n%f\n%d\n", &item.id, item.nome, item.tipo, &item.preco, &item.estoque) != EOF) {
+        total++;
+        valorTotal += item.preco * item.estoque;
+        if (strcmp(item.tipo, "bebida") == 0 || strcmp(item.tipo, "Bebida") == 0)
+            totalBebidas++;
+        else if (strcmp(item.tipo, "comida") == 0 || strcmp(item.tipo, "Comida") == 0)
+            totalComidas++;
+    }
+
+    fclose(fp);
+
+    printf("\n=== RELATÓRIO DO ESTOQUE ===\n");
+    printf("Total de itens: %d\n", total);
+    printf(" - Bebidas: %d\n", totalBebidas);
+    printf(" - Comidas: %d\n", totalComidas);
+    printf("Valor total do estoque: R$ %.2f\n", valorTotal);
+}
+
+int carregarItens(Item itens[]) {
+    FILE *fp = fopen("cardapio.txt", "r");
+    int total = 0;
+    if (fp == NULL) return 0;
+
+    while (fscanf(fp, "%d\n%[^\n]\n%[^\n]\n%f\n%d\n", &itens[total].id, itens[total].nome, itens[total].tipo, &itens[total].preco, &itens[total].estoque) != EOF) {
+        total++;
+    }
+    fclose(fp);
+    return total;
+}
